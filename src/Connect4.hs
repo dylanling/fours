@@ -26,14 +26,14 @@ diagonals = tail . go [] where
 
 hasN :: Int -> Int -> Cell -> Cells -> Cell
 hasN _ _ _ [] = Nothing
-hasN n soFar current cells =
-    case (soFar >= n, current, cells) of
-        (_, _, []) -> Nothing
-        (_, Nothing, x:xs) -> hasN n 0 x xs
-        (True, cell, _) -> cell
-        (False, cell, x:xs) -> if x == current
-                               then hasN n (soFar + 1) x xs
-                               else hasN n 1 x xs
+hasN n soFar current cells = case (soFar >= n, current, cells) of
+    (_, _, []) -> Nothing
+    (_, Nothing, x:xs) -> hasN n 0 x xs
+    (True, cell, _) -> cell
+    (False, cell, x:xs) ->
+        if x == current
+        then hasN n (soFar + 1) x xs
+        else hasN n 1 x xs
 
 cellsWinner :: Cells -> Cell
 cellsWinner [] = Nothing
