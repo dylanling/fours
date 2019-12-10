@@ -5,13 +5,10 @@ module Connect4
 import Data.List
 import Data.Maybe
 
-data Cell = Red | Black | Empty
+data Token = Red | Black
      deriving (Eq)
 
-instance Show Cell where
-    show Red = "R"
-    show Black = "B"
-    show Empty = "."
+type Cell = Maybe Token
 
 type Cells = [Cell]
 
@@ -27,28 +24,24 @@ diagonals = tail . go [] where
         e:es -> go (e:ts) es
         where ts = [t | _:t <- b]
 
-sublists :: (Eq a) => [a] -> [[a]] -> [[a]]
-sublists [] xss = xss
-sublists xs [] = sublists (tail xs) ([[head xs]])
-sublists xs xss
-    | (head xs) == (head (head xss)) = sublists (tail xs) (((head xs) : head xss) : tail xss)
-    | otherwise = sublists (tail xs) ([head xs] : xss)
+hasN :: Int -> Int -> Cell -> Cells -> Cell
+hasN _ _ _ [] = Nothing
+hasN n soFar current cells =
+    case (soFar >= n, current, cells) of
+        (_, _, []) -> Nothing
+        (_, Nothing, x:xs) -> hasN n 0 x xs
+        (True, cell, _) -> cell
+        (False, cell, x:xs) -> if x == current
+                               then hasN n (soFar + 1) x xs
+                               else hasN n 1 x xs
 
-hasContiguous :: Int -> Cells -> Maybe Cell
-hasContiguous n cells =
-    let hasN = filter (\xs -> length xs >= n) (sublists cells [])
-    in case hasN of
-        [] -> Nothing
-        x:xs -> Just (head x)
+cellsWinner :: Cells -> Cell
+cellsWinner [] = Nothing
+cellsWinner cells = case (head cells, tail cells) of
+    (Nothing, xs) -> cellsWinner xs
+    (x, xs) -> hasN 4 1 x xs
 
-cellsWinner :: Cells -> Maybe Cell
-cellsWinner cells =
-    let has4 = hasContiguous 4 cells
-    in case has4 of
-        Just Empty -> Nothing
-        has4 -> has4
-
-winner :: Board -> Maybe Cell
+winner :: Board -> Cell
 winner board =
     let winners = (catMaybes (map cellsWinner (board ++ rows board ++ diagonals board ++ diagonals (reverse board))))
     in case winners of
@@ -56,24 +49,28 @@ winner board =
         x:_ -> Just x
 
 
-putInBottom :: Cell -> Int -> Board -> Board
+putInBottom :: Token -> Int -> Board -> Board
 putInBottom token col board =
     let (left, right) = splitAt col board
     in case uncons right of
-        Just (headRight, tailRight) -> left ++ [init (token : headRight)] ++ tailRight
+        Just (headRight, tailRight) -> left ++ [init (Just token : headRight)] ++ tailRight
         Nothing -> board
 
-movesFrom :: Cell -> [Int] -> [[Cells] -> [Cells]]
+movesFrom :: Token -> [Int] -> [[Cells] -> [Cells]]
 movesFrom _ [] = []
-movesFrom Empty _ = []
 movesFrom Red cols = putInBottom Red (head cols) : movesFrom Black (tail cols)
 movesFrom Black cols = putInBottom Black (head cols) : movesFrom Red (tail cols)
 
 moves :: [Int] -> [[Cells] -> [Cells]]
 moves cols = movesFrom Red cols
 
+showCell :: Cell -> String
+showCell (Just Red) = "R"
+showCell (Just Black) = "B"
+showCell Nothing = "."
+
 showRow :: Cells -> String
-showRow row = intercalate "  " (map show row)
+showRow row = intercalate "  " (map showCell row)
 
 showBoard :: Board -> String
 showBoard board = unlines (map showRow (rows board))
@@ -83,10 +80,11 @@ showWinner board =
     let winningToken = winner board
     in case winningToken of
         Nothing -> "No winner."
-        Just cell -> (show cell) ++ " wins!"
+        Just Black -> "Black wins!"
+        Just Red -> "Red Wins!"
 
 emptyColumn :: Cells
-emptyColumn = replicate 6 Empty
+emptyColumn = replicate 6 Nothing
 
 emptyBoard :: Board
 emptyBoard = replicate 7 (emptyColumn)
